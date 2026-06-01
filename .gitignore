@@ -1,0 +1,33 @@
+# Data
+data/raw/
+data/processed/
+
+# Models — allow metadata, exclude large binaries
+models/*.pt
+models/*.npy
+models/*.pkl
+
+# Reports — un-ignore portfolio figures
+reports/figures/*.png
+!reports/figures/metrics_comparison.png
+!reports/figures/accuracy_diversity.png
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# MLflow
+mlruns/
+
+# OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
