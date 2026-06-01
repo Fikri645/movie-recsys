@@ -87,7 +87,7 @@ def train() -> tuple[TwoTowerModel, np.ndarray, dict[str, float]]:
             "lr": 1e-3,
             "n_negatives": 4,
         })
-        mlflow.log_metrics(metrics)
+        mlflow.log_metrics({k.replace("@", "_at_"): v for k, v in metrics.items()})
 
     return model, item_embs, metrics
 

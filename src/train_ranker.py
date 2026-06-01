@@ -252,7 +252,7 @@ def train_ranker() -> dict[str, float]:
     with mlflow.start_run(run_name="Two-Tower+Ranker"):
         mlflow.set_tag("model", "Two-Tower+LightGBM-Ranker")
         mlflow.log_params({**params, "retrieval_k": RETRIEVAL_K})
-        mlflow.log_metrics(metrics_ranked)
+        mlflow.log_metrics({k.replace("@", "_at_"): v for k, v in metrics_ranked.items()})
 
     return metrics_ranked
 

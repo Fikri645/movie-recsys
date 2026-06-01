@@ -83,7 +83,10 @@ def load_data() -> dict:
         grp.iloc[cut:, grp.columns.get_loc("split")] = "test"
         return grp
 
-    pos = pos.groupby("user_idx", group_keys=False).apply(split_user)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        pos = pos.groupby("user_idx", group_keys=False).apply(split_user)
     train_df = pos[pos["split"] == "train"].copy()
     test_df  = pos[pos["split"] == "test"].copy()
 

@@ -48,7 +48,7 @@ class ALSRecommender:
     def recommend(self, user_idx: int, k: int, train_history: set[int]) -> list[int]:
         ids, _ = self.model.recommend(
             user_idx, self.train_matrix[user_idx],
-            N=k + len(train_history), filter_already_liked=True,
+            N=k, filter_already_liked_items=True,
         )
         return [int(i) for i in ids[:k]]
 
@@ -95,7 +95,7 @@ def train_als() -> dict[str, float]:
             "iterations": ALS_ITERATIONS,
             "regularization": ALS_REGULARIZE,
         })
-        mlflow.log_metrics(metrics)
+        mlflow.log_metrics({k.replace("@", "_at_"): v for k, v in metrics.items()})
 
     return metrics
 
