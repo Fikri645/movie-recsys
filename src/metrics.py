@@ -7,9 +7,10 @@ All metrics use a ranked list approach:
 """
 from __future__ import annotations
 
-import numpy as np
 from collections import defaultdict
 from typing import Callable
+
+import numpy as np
 
 
 def precision_at_k(top_k: list[int], relevant: set[int], k: int) -> float:

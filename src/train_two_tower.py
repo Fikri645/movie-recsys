@@ -4,19 +4,20 @@ Builds an item embedding index for fast top-K retrieval.
 """
 from __future__ import annotations
 
-import json
+import mlflow
 import numpy as np
 import torch
-import mlflow
-import time
 
 from src.config import (
-    TWO_TOWER_PATH, ITEM_EMBEDDINGS_PATH, USER_EMBEDDINGS_PATH,
-    MODELS_DIR, TOP_K_LIST, RETRIEVAL_K, SEED,
+    ITEM_EMBEDDINGS_PATH,
+    MODELS_DIR,
+    TOP_K_LIST,
+    TWO_TOWER_PATH,
+    USER_EMBEDDINGS_PATH,
 )
-from src.data_loader import load_data, get_user_history
+from src.data_loader import get_user_history, load_data
+from src.metrics import catalog_coverage, evaluate_model, print_metrics
 from src.two_tower import TwoTowerModel, train_two_tower
-from src.metrics import evaluate_model, print_metrics, catalog_coverage
 
 
 def top_k_from_embeddings(

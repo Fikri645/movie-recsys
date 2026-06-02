@@ -10,18 +10,18 @@ Saves results to models/model_meta.json and reports/figures/.
 from __future__ import annotations
 
 import json
-import time
+
+import matplotlib
+import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib
+
 matplotlib.use("Agg")
 
-from src.config import MODELS_DIR, FIGURES_DIR, MODEL_META_PATH, TOP_K_LIST
+from src.config import FIGURES_DIR, MODEL_META_PATH, MODELS_DIR
 from src.train_als import train_als
-from src.train_two_tower import train as train_two_tower
 from src.train_ranker import train_ranker
+from src.train_two_tower import train as train_two_tower
 
 
 def run_experiments() -> None:

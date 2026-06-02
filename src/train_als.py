@@ -6,20 +6,23 @@ Ratings >= MIN_RATING are treated as positive interactions (confidence=1).
 """
 from __future__ import annotations
 
-import numpy as np
 import pickle
 import time
-import mlflow
 
-import implicit
+import mlflow
 from implicit.als import AlternatingLeastSquares
 
 from src.config import (
-    ALS_FACTORS, ALS_ITERATIONS, ALS_REGULARIZE,
-    ALS_MODEL_PATH, MODELS_DIR, SEED, TOP_K_LIST,
+    ALS_FACTORS,
+    ALS_ITERATIONS,
+    ALS_MODEL_PATH,
+    ALS_REGULARIZE,
+    MODELS_DIR,
+    SEED,
+    TOP_K_LIST,
 )
-from src.data_loader import load_data, build_interaction_matrix, get_user_history
-from src.metrics import evaluate_model, print_metrics
+from src.data_loader import build_interaction_matrix, get_user_history, load_data
+from src.metrics import catalog_coverage, evaluate_model, print_metrics
 
 
 class ALSRecommender:
@@ -84,8 +87,13 @@ def train_als() -> dict[str, float]:
     print("Evaluating ALS (2000 users) ...")
     metrics = evaluate_model(recommend_fn, test_dict, train_dict,
                              k_list=TOP_K_LIST, n_users_eval=2000)
-    print_metrics("ALS Baseline", metrics)
 
+    # Catalog coverage (ALS is known for popularity bias — this exposes it)
+    eval_users = list(test_dict.keys())[:500]
+    recs_cov = {u: recommend_fn(u, 20) for u in eval_users}
+    metrics["coverage@20"] = catalog_coverage(recs_cov, n_items)
+
+    print_metrics("ALS Baseline", metrics)
     rec.save()
 
     with mlflow.start_run(run_name="ALS"):

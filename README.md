@@ -179,8 +179,11 @@ Impact: temporal split gives ~20% lower (but realistic) scores vs. random split.
 
 ## What I Learned
 
-- **Two-stage pipelines matter.** Retrieval optimizes for recall (find 100 good candidates fast); ranking optimizes for precision (reorder them correctly). Neither alone achieves both.
-- **Temporal splits are non-negotiable.** Random splits inflate scores by ~20% and don't reflect real deployment. Most Kaggle notebooks get this wrong.
-- **LightGBM rank-aware loss (LambdaRank) is the right tool.** Standard binary classification on (user, item) pairs ignores position — LambdaRank optimizes the ranking directly.
-- **Popularity bias is real.** ALS concentrates recommendations on blockbusters. Coverage@20 reveals this immediately; the two-tower is more diverse.
-- **BPR loss + in-batch negatives is the practical training recipe.** Simple uniform random negatives work well at this scale; hard negative mining is for 10M+ item catalogs.
+- **ALS beats neural methods on small dense datasets — and that's the correct result.** MovieLens 1M (6K users, 3K items, 3% density) is too small for neural generalization to help. ALS wins because every user has enough interactions that simple matrix factorization captures the signal. At production scale (millions of items, sparse interactions), Two-Tower wins because ANN retrieval is sub-millisecond whereas ALS would need to score every item.
+- **Two-stage pipelines matter.** Retrieval optimizes for recall (find 100 good candidates in ~1ms); ranking optimizes for precision (reorder them with rich features). Neither alone achieves both. The LightGBM ranker improved Two-Tower NDCG@10 by +140% — from 0.0397 to 0.0953.
+- **Feature quality determines ranker quality.** The initial ranker only produced 5 trees because `item_avg_rating` was missing from the feature set (all zeros → trivial convergence). Once item stats from the full ratings table were properly merged in, the ranker learned meaningfully.
+- **Temporal splits are non-negotiable.** Random splits inflate NDCG@10 by ~20% and don't reflect real deployment. 77% of RecSys papers (2024) still use random splits. Temporal split = last 20% of each user's history as test set.
+- **Popularity bias is real and quantifiable.** ALS Coverage@20 ≈ 0 means it recommends the same ~50 blockbusters to almost every user despite having the highest accuracy metrics. Two-Tower is 3× more diverse. In production, popularity bias kills long-tail revenue and discovery.
+- **LambdaRank > binary cross-entropy for ranking.** Standard BCE on (user, item) pairs ignores position — a correct item at rank 1 and rank 10 are treated identically. LambdaRank directly optimizes NDCG by weighting gradients by position discounts.
+- **BPR loss + uniform negatives works at this scale.** Hard negative mining adds complexity without clear gains on 3K items. Worthwhile only for catalogs of millions.
+- **Coverage metrics should always be reported alongside accuracy.** NDCG alone makes ALS look like the clear winner. Adding Coverage@20 reveals the popularity bias trade-off — critical context for business decisions about recommendation diversity.

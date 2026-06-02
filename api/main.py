@@ -12,16 +12,19 @@ from __future__ import annotations
 import json
 import pickle
 import time
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from fastapi import FastAPI, HTTPException
 
-from api.schemas import RecommendRequest, RecommendResponse, MovieRec, HealthResponse
+from api.schemas import HealthResponse, MovieRec, RecommendRequest, RecommendResponse
 from src.config import (
-    MODELS_DIR, RANKER_PATH, MODEL_META_PATH,
-    ITEM_EMBEDDINGS_PATH, USER_EMBEDDINGS_PATH,
-    DATA_PROC, RETRIEVAL_K,
+    DATA_PROC,
+    ITEM_EMBEDDINGS_PATH,
+    MODEL_META_PATH,
+    RANKER_PATH,
+    RETRIEVAL_K,
+    USER_EMBEDDINGS_PATH,
 )
 
 app = FastAPI(
@@ -66,7 +69,6 @@ async def startup():
 
 
 def _top_k(user_idx: int, k: int) -> tuple[list[int], list[float]]:
-    user_embs = _state["item_embs"]  # typo guard: we want item_embs
     item_embs = _state["item_embs"]
     u_emb     = _state["user_embs"][user_idx]
     exclude   = _state.get("train_history", {}).get(user_idx, set())

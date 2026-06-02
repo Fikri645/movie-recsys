@@ -8,14 +8,19 @@ Key design decisions:
 """
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from scipy.sparse import csr_matrix
 
 from src.config import (
-    MOVIELENS_DIR, DATA_PROC, MIN_RATING,
-    MIN_USER_INTS, MIN_ITEM_INTS, TEST_FRAC, SEED,
+    DATA_PROC,
+    MIN_ITEM_INTS,
+    MIN_RATING,
+    MIN_USER_INTS,
+    MOVIELENS_DIR,
+    TEST_FRAC,
 )
 
 
@@ -48,9 +53,6 @@ def load_data() -> dict:
       user_map, item_map — original_id → 0-based index
       n_users, n_items
     """
-    proc = DATA_PROC
-    cache = proc / "dataset.parquet"
-
     ratings, movies, users = load_raw()
 
     # ── Implicit positives ────────────────────────────────────────────────
@@ -83,7 +85,6 @@ def load_data() -> dict:
         grp.iloc[cut:, grp.columns.get_loc("split")] = "test"
         return grp
 
-    import warnings
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", FutureWarning)
         pos = pos.groupby("user_idx", group_keys=False).apply(split_user)
@@ -96,6 +97,22 @@ def load_data() -> dict:
     movies["year"] = movies["title"].str.extract(r"\((\d{4})\)").astype(float)
     movies = movies.dropna(subset=["item_idx"])
     movies["item_idx"] = movies["item_idx"].astype(int)
+
+    # ── Item stats from ALL ratings (not just filtered) ───────────────────
+    # Using full ratings gives richer signal for avg_rating (includes 1-3 star reviews)
+    item_stats = (
+        ratings[ratings["movie_id"].isin(item_ids)]
+        .groupby("movie_id")
+        .agg(item_avg_rating=("rating", "mean"), item_n_ratings=("rating", "count"))
+        .reset_index()
+    )
+    item_stats["item_idx"] = item_stats["movie_id"].map(item_map)
+    item_stats = item_stats.dropna(subset=["item_idx"])
+    item_stats["item_idx"] = item_stats["item_idx"].astype(int)
+    movies = movies.merge(item_stats[["item_idx", "item_avg_rating", "item_n_ratings"]],
+                          on="item_idx", how="left")
+    movies["item_avg_rating"] = movies["item_avg_rating"].fillna(0.0).round(3)
+    movies["item_n_ratings"]  = movies["item_n_ratings"].fillna(0).astype(int)
 
     # genre one-hot (for ranker features)
     genre_list = sorted({g for gs in movies["genres"].str.split("|") for g in gs})

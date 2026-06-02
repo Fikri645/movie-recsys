@@ -1,7 +1,7 @@
 """Unit tests for ranking metrics."""
 import pytest
-from src.metrics import precision_at_k, recall_at_k, ndcg_at_k, hit_at_k, mrr_at_k
 
+from src.metrics import hit_at_k, mrr_at_k, ndcg_at_k, precision_at_k, recall_at_k
 
 TOP_K   = [0, 1, 2, 5, 8]   # ranked list
 RELEVANT = {1, 5}            # ground truth

@@ -13,22 +13,26 @@ Training: LambdaRank (listwise) with group-aware ranking.
 """
 from __future__ import annotations
 
-import json
 import pickle
-import numpy as np
-import pandas as pd
+import time
+
 import lightgbm as lgb
 import mlflow
-import time
-from pathlib import Path
+import numpy as np
+import pandas as pd
 
 from src.config import (
-    RANKER_PATH, MODELS_DIR, TOP_K_LIST, RETRIEVAL_K,
-    ITEM_EMBEDDINGS_PATH, USER_EMBEDDINGS_PATH, SEED,
+    ITEM_EMBEDDINGS_PATH,
+    MODELS_DIR,
+    RANKER_PATH,
+    RETRIEVAL_K,
+    SEED,
+    TOP_K_LIST,
+    USER_EMBEDDINGS_PATH,
 )
-from src.data_loader import load_data, get_user_history
+from src.data_loader import get_user_history, load_data
+from src.metrics import catalog_coverage, evaluate_model, print_metrics
 from src.train_two_tower import top_k_from_embeddings
-from src.metrics import evaluate_model, print_metrics, catalog_coverage
 
 
 def build_user_stats(train_df: pd.DataFrame, movies_df: pd.DataFrame,
@@ -90,8 +94,6 @@ def build_ranking_dataset(
         u_avg   = u_stats.get("user_avg_rating", 3.5)
         u_n     = u_stats.get("user_n_ratings", 0)
         u_fav   = u_stats.get("fav_genre_idx", 0)
-        u_emb_v = u_emb
-
         scores = item_embs @ u_emb   # dot products for all items
 
         for rank, item in enumerate(candidates):
@@ -99,7 +101,6 @@ def build_ranking_dataset(
             i_avg   = i_stats.get("item_avg_rating", 3.5)
             i_n     = i_stats.get("item_n_ratings", 0)
             i_year  = i_stats.get("year", 2000) or 2000
-            i_emb   = item_embs[item]
 
             genre_match = sum(
                 i_stats.get(g, 0) for j, g in enumerate(genre_cols)
@@ -137,7 +138,6 @@ def train_ranker() -> dict[str, float]:
     test_df    = data["test_df"]
     movies_df  = data["movies_df"]
     genre_cols = data["genre_cols"]
-    n_users    = data["n_users"]
     n_items    = data["n_items"]
 
     train_dict = get_user_history(train_df)
@@ -154,11 +154,8 @@ def train_ranker() -> dict[str, float]:
     rng          = np.random.default_rng(SEED)
     all_test_u   = list(test_dict.keys())
     train_users  = rng.choice(all_test_u, size=min(3000, len(all_test_u)), replace=False)
-    val_users    = rng.choice(
-        [u for u in all_test_u if u not in set(train_users)],
-        size=min(500, len(all_test_u) - len(train_users)),
-        replace=False,
-    )
+    remaining    = [u for u in all_test_u if u not in set(train_users)]
+    val_users    = rng.choice(remaining, size=min(1000, len(remaining)), replace=False)
 
     print(f"Building ranking dataset ({len(train_users)} train users) ...")
     train_rank, train_groups = build_ranking_dataset(
@@ -178,15 +175,18 @@ def train_ranker() -> dict[str, float]:
                             group=val_groups, reference=lgb_train)
 
     params = {
-        "objective"      : "lambdarank",
-        "metric"         : "ndcg",
-        "ndcg_eval_at"   : [5, 10],
-        "num_leaves"     : 63,
-        "learning_rate"  : 0.05,
-        "n_estimators"   : 200,
-        "min_child_samples": 10,
-        "seed"           : SEED,
-        "verbose"        : -1,
+        "objective"        : "lambdarank",
+        "metric"           : "ndcg",
+        "ndcg_eval_at"     : [5, 10],
+        "num_leaves"       : 63,
+        "learning_rate"    : 0.03,
+        "n_estimators"     : 500,
+        "min_child_samples": 5,
+        "feature_fraction" : 0.8,
+        "bagging_fraction" : 0.8,
+        "bagging_freq"     : 5,
+        "seed"             : SEED,
+        "verbose"          : -1,
     }
 
     print("Training LightGBM ranker ...")
@@ -194,7 +194,7 @@ def train_ranker() -> dict[str, float]:
     ranker = lgb.train(
         params, lgb_train,
         valid_sets=[lgb_val],
-        callbacks=[lgb.early_stopping(20, verbose=False), lgb.log_evaluation(50)],
+        callbacks=[lgb.early_stopping(30, verbose=False), lgb.log_evaluation(50)],
     )
     print(f"  Done in {time.time()-t0:.1f}s | best_iter={ranker.best_iteration}")
 

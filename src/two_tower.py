@@ -16,14 +16,15 @@ Retrieval:
 """
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-import time
+from torch.utils.data import DataLoader, Dataset
 
-from src.config import EMBEDDING_DIM, EPOCHS, BATCH_SIZE, LEARNING_RATE, N_NEGATIVES, SEED
+from src.config import BATCH_SIZE, EMBEDDING_DIM, EPOCHS, LEARNING_RATE, N_NEGATIVES, SEED
 
 
 class TwoTowerModel(nn.Module):

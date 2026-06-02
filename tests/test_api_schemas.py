@@ -1,7 +1,8 @@
 """Unit tests for API Pydantic schemas."""
 import pytest
 from pydantic import ValidationError
-from api.schemas import RecommendRequest, MovieRec, RecommendResponse, HealthResponse
+
+from api.schemas import HealthResponse, MovieRec, RecommendRequest
 
 
 class TestRecommendRequest:

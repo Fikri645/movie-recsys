@@ -1,4 +1,4 @@
-.PHONY: install data train-als train-two-tower train-ranker experiments test lint api ui all
+.PHONY: install data train-als train-two-tower train-ranker experiments drift test lint api ui docker-up all
 
 PYTHON := C:/Users/fikri/AppData/Local/Programs/Python/Python311/python.exe
 
@@ -45,6 +45,10 @@ api:
 ui:
 	$(PYTHON) app/gradio_app.py
 
-## Build and start Docker stack
+## Run data drift report (PSI-based, saves reports/drift_report.html)
+drift:
+	$(PYTHON) -m monitoring.drift_report
+
+## Build and start Docker stack (API + MLflow)
 docker-up:
 	docker-compose up --build

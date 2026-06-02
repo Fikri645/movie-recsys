@@ -118,7 +118,7 @@ def recommend(user_id_str: str, genre_filter: str) -> tuple[str, str]:
 
     recs_lines = [
         f"### 🎬 Top {min(len(filtered), 10)} Recommendations",
-        f"*Model: Two-Tower retrieval + LightGBM ranker*"
+        "*Model: Two-Tower retrieval + LightGBM ranker*"
         + (f"  |  Genre filter: **{genre_filter}**" if genre_filter != "All" else ""),
         "",
         "| # | Title | Year | Genres | Popularity | Match |",
