@@ -1,6 +1,7 @@
 # Data
 data/raw/
-data/processed/
+data/processed/*.parquet
+data/processed/*.csv
 
 # Models — allow metadata, exclude large binaries
 models/*.pt
