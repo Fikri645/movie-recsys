@@ -97,7 +97,7 @@ def recommend(user_id_str: str, model: str, k: int) -> str:
     retrieval_k = 100
     items, raw_scores = _top_k_retrieval(user_idx, retrieval_k)
 
-    if model == "Two-Tower + LightGBM Ranker" and "ranker" in _state:
+    if model == "Two-Tower + LightGBM Ranker" and "ranker" in _state:  # noqa: SIM102
         ranker    = _state["ranker"]
         movies_df = _state.get("movies", pd.DataFrame())
         id_meta   = movies_df.set_index("item_idx").to_dict("index") if not movies_df.empty else {}
@@ -232,7 +232,7 @@ with gr.Blocks(title="Movie Recommendation System", theme=gr.themes.Soft()) as d
                     user_id  = gr.Textbox(label=f"User ID (0 – {max(0, n_users-1)})",
                                           value="42")
                     model    = gr.Radio(
-                        choices=["ALS", "Two-Tower", "Two-Tower + LightGBM Ranker"],
+                        choices=["Two-Tower (retrieval only)", "Two-Tower + LightGBM Ranker"],
                         value="Two-Tower + LightGBM Ranker",
                         label="Model",
                     )
