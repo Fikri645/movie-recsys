@@ -153,9 +153,9 @@ _RESULTS_MD = """
 
 | Model | NDCG@10 | Recall@20 | Hit@10 | Coverage@20 |
 |---|---|---|---|---|
-| **ALS** 🏆 | **0.0986** | **0.1272** | **0.4970** | ~0 |
+| ALS | 0.0986 | **0.1272** | 0.4970 | 0.214 |
 | Two-Tower (retrieval only) | 0.0397 | 0.0361 | 0.2550 | **0.131** |
-| **Two-Tower + LightGBM Ranker** | 0.0953 | 0.0846 | 0.4630 | 0.124 |
+| **Two-Tower + LightGBM Ranker 🏆** | **0.1083** | 0.0909 | **0.4955** | 0.116 |
 
 ### What the numbers mean
 
@@ -168,23 +168,24 @@ _RESULTS_MD = """
 
 ### Key findings
 
-**1. ALS beats Two-Tower on a small dense dataset — and that's expected.**
+**1. Two-Tower + LightGBM Ranker beats ALS — once features are correct.**
 
-MovieLens 1M has only 6K users × 3K items at 3% density. Collaborative filtering (ALS)
-thrives when every user has rich interaction history. Neural methods shine at scale
-(millions of items) where ANN retrieval is essential.
+With proper `item_avg_rating`, `genre_match`, and `retrieval_score` features, the ranker
+uses 28 trees to re-order top-100 candidates and achieves NDCG@10=**0.1083** vs. ALS 0.0986.
+Initially the ranker had only 5 trees — a data bug (all-zero `item_avg_rating`) caused trivial convergence.
+Lesson: **data pipeline bugs matter more than model architecture.**
 
-**2. LightGBM ranker recovers +140% NDCG@10.**
+**2. LightGBM ranker: +173% NDCG@10 over bare retrieval.**
 
-Two-Tower alone: 0.0397 → Two-Tower + LightGBM Ranker: **0.0953**.
-The ranker re-orders the top-100 candidates using rich features (genre match,
-item popularity, retrieval score, year) — nearly matching ALS performance.
+Two-Tower alone: 0.0397 → Two-Tower + LightGBM Ranker: **0.1083**.
+LambdaRank directly optimizes NDCG by weighting gradients by position discounts —
+a correct item at rank 1 matters far more than at rank 10 (unlike binary cross-entropy).
 
-**3. ALS's Coverage@20 ≈ 0 reveals dangerous popularity bias.**
+**3. Coverage@20 tells a different story than NDCG.**
 
-ALS recommends the same ~50 blockbusters to almost every user (highest NDCG but
-zero diversity). Two-Tower is **3× more diverse** (Coverage 0.131).
-In production, popularity bias kills long-tail revenue and hurts discovery.
+ALS Coverage = 0.214 (personalized across users). Two-Tower+Ranker = 0.116 (biased toward
+high-rated items). Neither is clearly "better" — the right trade-off depends on business goals
+(engagement vs. discovery). Report both metrics, not just NDCG.
 
 **4. Temporal split matters.**
 
