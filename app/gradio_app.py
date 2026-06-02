@@ -137,7 +137,7 @@ def recommend(user_id_str: str, genre_filter: str) -> tuple[str, str]:
 
     recs_lines += [
         "",
-        "> ✓ = matches your favorite genres  \n"
+        f"> ✓ = matches User {uid}'s favorite genres ({', '.join(sorted(fav_genres)[:3])})  \n"
         "> Popularity: ★★★★★ >500 ratings  ·  ★★★★ >200  ·  ★★★ >50  ·  ★★ >10",
     ]
 
