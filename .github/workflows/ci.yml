@@ -16,9 +16,13 @@ jobs:
           python-version: "3.11"
           cache: "pip"
       - name: Install dependencies
-        run: pip install pandas numpy scikit-learn lightgbm pydantic pytest pytest-cov ruff
+        run: |
+          pip install pandas numpy scipy scikit-learn lightgbm pydantic \
+                      httpx fastapi pytest pytest-cov ruff
+          # Install CPU-only torch (avoids 2 GB CUDA download)
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: Lint
-        run: ruff check src/ tests/ api/ app/ --ignore E501
+        run: ruff check src/ tests/ api/ app/ monitoring/ --ignore E501
         continue-on-error: true
       - name: Run tests
         run: pytest tests/ -v --tb=short --cov=src --cov=api --cov-report=term-missing

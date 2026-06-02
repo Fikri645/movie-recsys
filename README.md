@@ -30,14 +30,15 @@ End-to-end two-stage movie recommendation system. Compares **3 approaches** from
 |---|---|
 | **Dataset** | MovieLens 1M — 1M ratings · 6,040 users · 3,706 movies |
 | **Models** | ALS → Two-Tower Neural → Two-Tower + LightGBM Ranker |
-| **Architecture** | Two-stage pipeline: retrieval (top-100) → ranking (reorder) |
+| **Best model** | Two-Tower + LightGBM Ranker — NDCG@10 **0.1083**, +10% over ALS |
+| **Architecture** | Two-stage pipeline: retrieval (top-100) → LambdaRank reorder |
 | **Evaluation** | Temporal split — last 20% of each user's history as test set |
-| **Key insight** | LightGBM ranker improves NDCG@10 over retrieval-only by re-ordering with rich features |
-| **Key insight** | Temporal split gives ~20% lower (more realistic) scores than random split |
-| **Metrics** | NDCG@K, Recall@K, Hit@K, Catalog Coverage |
+| **Key insight #1** | Feature quality determines ranker quality — data bug (all-zero `item_avg_rating`) caused ranker to stop at 5 trees; fix → 28 trees, +10% NDCG |
+| **Key insight #2** | ALS Coverage@20=0.21 vs. Two-Tower+Ranker=0.12 — always report diversity alongside accuracy |
+| **Metrics** | NDCG@K, Recall@K, Hit@K, Catalog Coverage@K |
 | **Tracking** | MLflow — all runs logged |
 | **API** | FastAPI `/recommend` endpoint |
-| **UI** | Gradio — interactive recommendations with model selector |
+| **UI** | Gradio — user profile, genre filter, match badge |
 | **Deployment** | HuggingFace Spaces |
 
 ---

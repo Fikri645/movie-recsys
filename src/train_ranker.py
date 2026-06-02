@@ -88,7 +88,7 @@ def build_ranking_dataset(
         u_emb      = user_embs[user]
         exclude    = train_dict.get(user, set())
         candidates = top_k_from_embeddings(u_emb, item_embs, RETRIEVAL_K, exclude)
-        positives  = test_dict.get(user, set()) if split == "train" else test_dict.get(user, set())
+        positives  = test_dict.get(user, set())
 
         u_stats = user_stats_map.get(user, {})
         u_avg   = u_stats.get("user_avg_rating", 3.5)

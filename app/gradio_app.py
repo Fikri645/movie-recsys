@@ -135,27 +135,68 @@ def recommend(user_id_str: str, genre_filter: str) -> tuple[str, str]:
         match    = "✓" if rec_genres & fav_genres else ""
         recs_lines.append(f"| {i} | **{title}** | {year} | {genres} | {pop} | {match} |")
 
+    genre_note = (f"User {uid}'s top genres: {', '.join(sorted(fav_genres)[:3])}"
+                  if fav_genres else f"User {uid} has no genre history")
     recs_lines += [
         "",
-        f"> ✓ = matches User {uid}'s favorite genres ({', '.join(sorted(fav_genres)[:3])})  \n"
+        f"> ✓ = matches {genre_note}  \n"
         "> Popularity: ★★★★★ >500 ratings  ·  ★★★★ >200  ·  ★★★ >50  ·  ★★ >10",
     ]
 
     return "\n".join(profile_lines), "\n".join(recs_lines)
 
 
-# ── Results tab ────────────────────────────────────────────────────────────
+# ── Results tab (dynamic from model_meta.json) ────────────────────────────
 
-_RESULTS_MD = """
-## Results — MovieLens 1M
+def _build_results_md() -> str:
+    """Build results markdown from model_meta.json — updates automatically on retrain."""
+    models_data = _META.get("models", {})
+    best        = _META.get("best_model", "Two-Tower+Ranker")
+
+    # Fallback hardcoded if meta not loaded
+    _fallback = {
+        "ALS":              {"ndcg@10": 0.0986, "recall@20": 0.1272, "hit@10": 0.4970, "coverage@20": 0.2144},
+        "Two-Tower":        {"ndcg@10": 0.0397, "recall@20": 0.0361, "hit@10": 0.2550, "coverage@20": 0.1312},
+        "Two-Tower+Ranker": {"ndcg@10": 0.1083, "recall@20": 0.0909, "hit@10": 0.4955, "coverage@20": 0.1158},
+    }
+    source = models_data if models_data else _fallback
+
+    def _get(model: str, key: str) -> float:
+        m = source.get(model, _fallback.get(model, {}))
+        # model_meta uses "@" keys; fallback uses same
+        return float(m.get(key, m.get(key.replace("@", "_at_"), 0)))
+
+    best_nd  = _get(best, "ndcg@10")
+    best_rec = _get(best, "recall@20")
+    best_hit = _get(best, "hit@10")
+
+    rows = []
+    order = ["ALS", "Two-Tower", "Two-Tower+Ranker"]
+    display = {"ALS": "ALS", "Two-Tower": "Two-Tower (retrieval only)",
+               "Two-Tower+Ranker": "Two-Tower + LightGBM Ranker"}
+    for name in order:
+        nd  = _get(name, "ndcg@10")
+        rec = _get(name, "recall@20")
+        hit = _get(name, "hit@10")
+        cov = _get(name, "coverage@20")
+        is_best = name == best
+        label = f"**{display[name]} 🏆**" if is_best else display[name]
+        nd_s  = f"**{nd:.4f}**" if nd  == best_nd  else f"{nd:.4f}"
+        rec_s = f"**{rec:.4f}**" if rec == best_rec else f"{rec:.4f}"
+        hit_s = f"**{hit:.4f}**" if hit == best_hit else f"{hit:.4f}"
+        rows.append(f"| {label} | {nd_s} | {rec_s} | {hit_s} | {cov:.3f} |")
+
+    table = "\n".join(rows)
+    source_note = "*(from model_meta.json — updates automatically on retrain)*" if models_data else "*(hardcoded fallback)*"
+
+    return f"""## Results — MovieLens 1M
 
 > Temporal split: last 20% of each user's ratings = test set · 2,000 eval users
+> {source_note}
 
 | Model | NDCG@10 | Recall@20 | Hit@10 | Coverage@20 |
 |---|---|---|---|---|
-| ALS | 0.0986 | **0.1272** | 0.4970 | 0.214 |
-| Two-Tower (retrieval only) | 0.0397 | 0.0361 | 0.2550 | **0.131** |
-| **Two-Tower + LightGBM Ranker 🏆** | **0.1083** | 0.0909 | **0.4955** | 0.116 |
+{table}
 
 ### What the numbers mean
 
@@ -164,56 +205,34 @@ _RESULTS_MD = """
 | **NDCG@10** | Quality of top-10 ranking — rewards putting the best items first |
 | **Recall@20** | Fraction of user's future movies found in top-20 predictions |
 | **Hit@10** | % of users who have at least 1 correct item in top-10 |
-| **Coverage@20** | Fraction of the 3,700-movie catalog ever recommended |
+| **Coverage@20** | Fraction of the 3,700-movie catalog recommended to at least one user |
 
 ### Key findings
 
 **1. Two-Tower + LightGBM Ranker beats ALS — once features are correct.**
 
-With proper `item_avg_rating`, `genre_match`, and `retrieval_score` features, the ranker
-uses 28 trees to re-order top-100 candidates and achieves NDCG@10=**0.1083** vs. ALS 0.0986.
-Initially the ranker had only 5 trees — a data bug (all-zero `item_avg_rating`) caused trivial convergence.
-Lesson: **data pipeline bugs matter more than model architecture.**
+With proper `item_avg_rating`, `genre_match`, and `retrieval_score`, the LightGBM ranker
+(LambdaRank, 28 trees) re-orders top-100 Two-Tower candidates and achieves NDCG@10=**0.1083**
+vs. ALS 0.0986. Initially the ranker stopped at 5 trees — a data bug (all-zero `item_avg_rating`)
+caused trivial convergence. Lesson: **data pipeline bugs matter more than model architecture.**
 
 **2. LightGBM ranker: +173% NDCG@10 over bare retrieval.**
 
-Two-Tower alone: 0.0397 → Two-Tower + LightGBM Ranker: **0.1083**.
-LambdaRank directly optimizes NDCG by weighting gradients by position discounts —
-a correct item at rank 1 matters far more than at rank 10 (unlike binary cross-entropy).
+Two-Tower alone: 0.0397 → Two-Tower + Ranker: **0.1083**.
+LambdaRank weights gradients by position discounts — a correct item at rank 1
+matters far more than rank 10 (unlike binary cross-entropy which ignores position).
 
 **3. Coverage@20 tells a different story than NDCG.**
 
-ALS Coverage = 0.214 (personalized across users). Two-Tower+Ranker = 0.116 (biased toward
-high-rated items). Neither is clearly "better" — the right trade-off depends on business goals
-(engagement vs. discovery). Report both metrics, not just NDCG.
+ALS Coverage = 0.214 (personalized MF sees different popular subsets per user).
+Two-Tower+Ranker = 0.116 (ranker biases toward high-rated items).
+Neither is clearly "better" — depends on business goals (engagement vs. discovery).
+**Always report diversity metrics alongside accuracy metrics.**
 
 **4. Temporal split matters.**
 
-Random train-test split inflates NDCG@10 by ~20%. We use the last 20% of each
-user's history as the test set — matching real deployment conditions.
-77% of academic papers still use random splits (wrong).
-
-### Architecture diagram
-
-```
-MovieLens 1M → Temporal split (last 20% per user = test)
-                    │
-          ┌─────────┴──────────┐
-          │  Stage 1           │
-          │  Two-Tower Neural  │  ← BPR loss, in-batch negatives
-          │  Retrieval         │  ← dot product → top-100 candidates
-          └─────────┬──────────┘
-                    │
-          ┌─────────┴──────────┐
-          │  Stage 2           │
-          │  LightGBM Ranker   │  ← LambdaRank (listwise)
-          │                    │  ← features: retrieval_score, genre_match,
-          │                    │    item_popularity, year, user_avg_rating
-          └─────────┬──────────┘
-                    │
-              Top-K recommendations
-```
-"""
+Random split inflates NDCG@10 by ~20% via future leakage. We use the last 20% of
+each user's history as test set. 77% of RecSys papers still use random splits (wrong)."""
 
 _ABOUT_MD = """
 ## Why Two Stages?
@@ -310,7 +329,7 @@ with gr.Blocks(title="Movie Recommendation System", theme=gr.themes.Soft()) as d
 
         # ── Tab 2: Model Comparison ───────────────────────────────────────
         with gr.Tab("📊 Model Comparison"):
-            gr.Markdown(_RESULTS_MD)
+            gr.Markdown(_build_results_md())
 
         # ── Tab 3: About ──────────────────────────────────────────────────
         with gr.Tab("ℹ️ About"):
