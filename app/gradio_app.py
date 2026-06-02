@@ -29,20 +29,41 @@ def _load():
     meta_path   = ROOT / "models" / "model_meta.json"
     train_path  = ROOT / "data" / "processed" / "train.parquet"
 
-    if movies_path.exists():
-        state["movies"] = pd.read_parquet(movies_path)
-    if item_path.exists():
-        state["item_embs"] = np.load(item_path)
-    if user_path.exists():
-        state["user_embs"] = np.load(user_path)
-    if ranker_path.exists():
-        with open(ranker_path, "rb") as f:
-            state["ranker"] = pickle.load(f)
-    if meta_path.exists():
-        state["meta"] = json.loads(meta_path.read_text())
-    if train_path.exists():
-        train = pd.read_parquet(train_path)
-        state["history"] = train.groupby("user_idx")["item_idx"].apply(set).to_dict()
+    try:
+        if movies_path.exists():
+            state["movies"] = pd.read_parquet(movies_path)
+    except Exception as e:
+        print(f"[load] movies: {e}")
+    try:
+        if item_path.exists():
+            state["item_embs"] = np.load(item_path)
+    except Exception as e:
+        print(f"[load] item_embs: {e}")
+    try:
+        if user_path.exists():
+            state["user_embs"] = np.load(user_path)
+    except Exception as e:
+        print(f"[load] user_embs: {e}")
+    try:
+        if ranker_path.exists():
+            with open(ranker_path, "rb") as f:
+                state["ranker"] = pickle.load(f)
+    except Exception as e:
+        print(f"[load] ranker: {e}")
+    try:
+        if meta_path.exists():
+            state["meta"] = json.loads(meta_path.read_text())
+    except Exception as e:
+        print(f"[load] meta: {e}")
+    try:
+        if train_path.exists():
+            train = pd.read_parquet(train_path)
+            state["history"] = train.groupby("user_idx")["item_idx"].apply(set).to_dict()
+    except Exception as e:
+        print(f"[load] history: {e}")
+
+    loaded = [k for k in ["movies","item_embs","user_embs","ranker","meta","history"] if k in state]
+    print(f"[load] loaded: {loaded}")
     return state
 
 
